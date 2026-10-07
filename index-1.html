@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arabic Slang Translator</title>
+<style>
+:root{--bg:#eaf1f4;--fg:#14232b;--card:#fff;--me:#0b6e8a;--meFg:#fff;--mut:#5b6f7a;--hit:#0b6e8a;--unk:#b45309;--line:#cfdce2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d161b;--fg:#e6eef2;--card:#18252c;--me:#1f7f9a;--mut:#93a8b3;--hit:#6fd0ec;--unk:#ffb454;--line:#2a3b44}}
+:root[data-theme="dark"]{--bg:#0d161b;--fg:#e6eef2;--card:#18252c;--me:#1f7f9a;--mut:#93a8b3;--hit:#6fd0ec;--unk:#ffb454;--line:#2a3b44}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,"Segoe UI",Tahoma,sans-serif;padding:20px 16px 40px}
+main{max-width:620px;margin:0 auto}
+h1{font-size:1.35rem;margin:0 0 4px}
+.sub{margin:0 0 18px;color:var(--mut);font-size:.9rem}
+.bub{border-radius:18px;padding:12px 14px;max-width:92%}
+.mine{background:var(--me);color:var(--meFg);margin-left:auto;border-bottom-right-radius:4px}
+.mine textarea{width:100%;min-height:96px;background:transparent;border:0;outline:0;color:inherit;font:inherit;resize:vertical}
+.mine textarea::placeholder{color:rgba(255,255,255,.7)}
+.theirs{background:var(--card);margin-top:10px;border-bottom-left-radius:4px;min-height:64px;white-space:pre-wrap;border:1px solid var(--line)}
+.hit{color:var(--hit);border-bottom:1px dotted var(--hit);cursor:pointer;font-weight:600}
+.unk{color:var(--unk);cursor:pointer}
+.meta{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:8px 4px;color:var(--mut);font-size:.82rem}
+button{border:1px solid var(--line);border-radius:999px;padding:6px 13px;background:var(--card);color:var(--fg);font:inherit;font-size:.85rem;cursor:pointer}
+button:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--hit);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+details{margin-top:22px;border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600}
+input{width:100%;margin:10px 0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg);font:inherit}
+.g{max-height:50vh;overflow:auto}
+.g div{cursor:pointer;display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.9rem}
+.g b{font-weight:600;overflow-wrap:anywhere}.g span{color:var(--mut);text-align:right}
+[hidden]{display:none!important}input[type=checkbox]{width:auto;margin:0;padding:0}.meta label{display:flex;gap:4px;align-items:center}.lrn{border-bottom-style:dashed}
+</style>
+</head>
+<body>
+<main>
+<h1>Arabic slang → English</h1>
+<p class="sub">Arabizi (7abibi, 3ala fekra) and Arabic script. Lebanese, Egyptian, Gulf, Iraqi, Sudanese, Maghrebi and more, plus chat, social media and gaming terms. Words you suggest are reviewed before they go live.</p>
+<div class="bub mine"><textarea id="in" dir="auto" placeholder="Type or paste: yalla habibi, 3ala fekra ana ta3ban ktir"></textarea></div>
+<div class="bub theirs" id="out">Translation shows here.</div>
+<div class="bub theirs" id="ed" hidden style="min-height:0"><div class="meta" id="edk" style="margin:0 0 6px"></div><input id="edw" hidden maxlength="200" placeholder="Word, or several spellings separated by commas" style="margin:4px 0"><input id="edv" maxlength="100" placeholder="English meaning" style="margin:4px 0"><div class="meta" style="margin:6px 0 0"><button id="eds">Send for review</button><button id="edc">Close</button><span id="edst"></span></div></div>
+<div class="meta"><span id="stat">Tap a green word to suggest a change, or an orange word to add it.</span><button id="copy">Copy</button></div>
+<div class="chips" id="chips"></div>
+<details id="gl"><summary id="gs">Browse the glossary</summary>
+<button id="addw" style="margin-top:10px">+ Suggest a word</button>
+<input id="q" type="search" placeholder="Search Arabizi, Arabic, or English (tap a row to suggest a change)">
+<div class="g" id="list"></div></details>
+</main>
+<script>
+const SB='https://jynzrulxhkixvtyupayj.supabase.co',KEY='sb_publishable_Sg516Zd0G0E8S8CQCCu3KQ_jzhwQfve',H={apikey:KEY};
+// Built-in copy of the dictionary, used until the live words load (or if they cannot load).
+const RAW=`
+salam,salam alaykum,assalamu alaykum,salam 3alaykom,السلام عليكم,سلام|hello (peace be upon you)
+wa 3alaykom el salam,وعليكم السلام|hello back (and peace upon you)
+marhaba,mrhba,marhba,مرحبا,اهلا,اهلين,hala,هلا,ahlan|hello
+hala wallah,هلا والله|hey, welcome (Gulf)
+7ayak allah,حياك الله,hayak|welcome (Gulf)
+sabah el kheir,sabah el 5air,صباح الخير|good morning
+sabah el nour,صباح النور|good morning (reply)
+masa2 el kheir,masa el kheir,مساء الخير|good evening
+masa el nour,مساء النور|good evening (reply)
+tisbah 3ala khair,tosbeh 3ala kheir,تصبح على خير,gn|good night
+ma3 salama,ma3a salama,m3 salama,مع السلامه|goodbye
+allah ma3ak,الله معك,الله معاك|goodbye (God be with you)
+shukran,shokran,shkran,شكرا,thx,thanks|thanks
+shukran jazilan,شكرا جزيلا|thank you very much
+jazak allah khair,jazakallah,جزاك الله خير|may God reward you (thanks)
+afwan,3afwan,عفوا|you're welcome / excuse me
+tislam,tislam edak,tislam ide,تسلم,تسلم ايدك|bless your hands (thanks)
+allah ysalmak,الله يسلمك|God keep you (thanks)
+ya3tik el 3afye,ya3tik al 3afya,الله يعطيك العافيه|more power to you
+bel tawfee2,bel tawfeeq,بالتوفيق|good luck
+mabrouk,mabrook,mabrouq,مبروك,الف مبروك|congratulations
+kol sana w enta tayeb,كل سنه وانت طيب|happy birthday / many happy returns
+eid mubarak,عيد مبارك|happy Eid
+ramadan kareem,رمضان كريم|Happy Ramadan
+inshallah,insha allah,inshaallah,ensha2allah,ان شاء الله,انشالله,isa|God willing
+mashallah,masha allah,mashalla,ماشاء الله,ما شاء الله,ماشالله|wow, God bless
+alhamdulillah,el7amdulillah,alhamdulilah,الحمدلله,الحمد لله,7amdella|thank God
+subhanallah,سبحان الله|glory to God (wow)
+astaghfirullah,astaghfer allah,استغفر الله|God forgive me (oh no)
+wallah,wallahi,w2llah,wlh,والله,واللهي,والله العظيم|I swear
+bismillah,بسم الله|in God's name (here goes)
+ya rab,yarab,يا رب|oh God / please God
+allah yer7amo,الله يرحمه|God rest his soul
+allah yehdik,الله يهديك|God guide you (ugh, you)
+allah ykhaleek,allah y5alik,الله يخليك|please / bless you
+rabena yekremak,ربنا يكرمك|God bless you
+allah y3eenak,الله يعينك|God help you
+la hawla wala quwwata,لا حول ولا قوه الا بالله|there's no power but God (sigh)
+kifak,kifek,keefak,kifik,كيفك,شلونك,ازيك,ezayak,ezzayek,شخبارك,shlonak,shlonek,كيف حالك|how are you?
+3amel eh,3amel ei,3amel eih,عامل ايه|how's it going?
+shu akhbarak,شو اخبارك,اخبارك,akhbarak,shakhbarak|what's up?
+labas,لاباس,labess|how are you? / fine (Maghrebi)
+shu,shou,sho,وش,ايش,eish,شو,ايه,eh,eih|what
+shnu,chno,شنو|what (Iraqi/Moroccan)
+leish,leesh,lesh,laish,ليش,ليه,lyh|why
+wen,wein,wayn,وين,فين,fen|where
+emta,imta,امتي,mta|when
+miin,min,مين|who
+addesh,adesh,قديش,بكام,bekam,قد ايش|how much
+izay,ازاي,kifash,كيفاش|how
+ya3ni eh,يعني ايه|what do you mean?
+eh da,ايه ده,eh dah|what is this?!
+aywa,aiwa,ايوه,ايوا,اي|yes
+na3am,نعم|yes / pardon?
+la,la2,laa,لا,لأ|no
+mish,mesh,msh,مش,مو,mu|not
+tamam,tmam,tmm,tayeb,tayyib,tyb,تمام,طيب|okay
+mashi,mashy,ماشي|alright
+ok,okay,اوكي,okey,اوك|okay
+wakha,واخا|okay (Moroccan)
+akeed,akid,2akeed,اكيد|of course
+tab3an,tab3a,طبعا|of course
+bgad,bgd,بجد|seriously
+ya3ni,yani,يعني|I mean / like
+khalas,5alas,khlas,خلاص|enough / done / okay then
+bas,بس|but / only / enough
+kda,keda,kdh,كده,هيك,heik,heek|like this
+dah,da,ده,هاد,had|this
+di,dee,دي,هاي,hay|this (f)
+3ashan,3shan,عشان,علشان|because / for
+ma3lesh,malesh,ma3leesh,معلش,معليش|sorry / never mind
+3adi,3ady,عادي|normal / no big deal
+momken,mumken,ممكن|can you? / maybe
+mish momken,مش ممكن|no way
+mafi,ma fi,مافي,ما في,mafeesh,مفيش|there isn't / none
+fi,fee,في|there is
+7aga,haga,حاجه,7aja|thing
+shi,shay,شي|thing
+kol shi,كل شي,kol 7aga,كل حاجه|everything
+walla,wla,ولا|or / not even
+lakin,laken,لكن|but
+ma3a,m3a,مع|with
+bdon,bedoon,bidoon,بدون|without
+hon,هون,hena,هنا|here
+hnak,hunak,هناك|there
+dlwa2ti,delwa2ti,dilwa2ti,دلوقتي,hala2,halla2,هلق,الحين,alhin,daba,دابا|now
+mbare7,embare7,امبارح|yesterday
+lyom,el yom,elyom,اليوم,النهارده|today
+bkra,bukra,bokra,بكره,بكرا|tomorrow
+badeen,ba3dein,بعدين,ba3den|later
+la7ze,la7za,lahza,لحظه,لحظة|one sec
+shwaya,shway,shwayya,شويه,شويا,شوي|a little
+ktir,kteer,kter,كتير,كثير,awi,awy,اوي,قوي,wayed,واجد,bzaf,بزاف,hwaya,هواية|a lot / very
+7elo,helo,7lw,حلو,حلوه|nice / cute / sweet
+kwayes,kwayis,كويس|good
+mnih,mneeh,mnieh,منيح|good / fine
+zain,zayn,زين|good (Gulf)
+mzyan,mzian,مزيان|good (Moroccan)
+zwin,زوين|beautiful (Moroccan)
+shater,شاطر|clever / well done
+ra2e3,رائع,روعه|awesome
+ta7fa,tu7fa,tahfa,تحفه|a masterpiece / awesome
+gamed,جامد|awesome (Egyptian)
+eshta,2eshta,قشطه|cool / great (Egyptian)
+zift,زفت|terrible
+bayez,بايظ|broken / bad
+ghalat,ghalta,غلط,غلطه|wrong / mistake
+sa7,sah,saheeh,صح,صحيح|right / true
+7aram,haram,حرام|what a pity / not right
+mesh 3arf,msh 3arf,mesh 3aref,مش عارف,ma3rafsh,m3rfsh,mab3arf,ما بعرف,مدري,madri|I don't know
+3arf,3aref,عارف,بعرف|I know
+fahem,fahma,فاهم,فاهمه,فهمت|understood
+mish fahem,مش فاهم|I don't understand
+ana,انا|I
+inta,enta,انت|you (m)
+inti,enti,انتي|you (f)
+howa,huwa,هو|he
+hiya,heya,هي|she
+e7na,احنا,7na|we
+homma,هم,هما|they
+asef,asf,sry,sorry,اسف,آسف,انا اسف|sorry
+bde,bdi,baddi,بدي,3ayez,3ayz,عايز,عايزه,3ayza,abgha,abi,ابغى,ابي,bghit,بغيت|I want
+mesh 3ayez,مش عايز,ma bdi,ما بدي|I don't want
+ba7ebak,bhebak,ba7ebik,بحبك,a7bak,احبك,bhbk|I love you
+bmoot feek,بموت فيك,amoot feek,اموت فيك|I'm crazy about you
+wa7shteni,wahashtini,w7shteni,wahshani,وحشتني,واحشني,وحشتيني|I missed you
+3omri,ya 3omri,عمري,يا عمري|my life (dear)
+rou7i,ya rou7i,روحي,يا روحي|my soul (dear)
+albi,ya albi,ya alby,قلبي,يا قلبي|my heart (dear)
+7ayati,hayati,حياتي|my life (dear)
+3youni,3eyooni,عيوني|my eyes (dear)
+habibi,7abibi,hbibi,7bibi,حبيبي,habib,7abib,حبيب|my dear / honey
+habibti,7abibti,hbibti,حبيبتي,habibty|my dear (f)
+ya amar,amar,يا قمر,قمر|you're gorgeous (moon)
+ya 7elo,يا حلو|hey cutie
+tu2bourni,te2brni,تقبرني|I adore you (bury me)
+yakhi,ya5i,ياخي,يا خي,ya5y|bro / man
+akhi,a5i,اخي,اخوي,akhoy|my brother
+sa7bi,sa7by,sahbi,صاحبي,صاحب|my friend
+ya zalame,ya zalameh,zalame,يا زلمه,زلمه|dude
+ya basha,basha,يا باشا,باشا|boss / sir (friendly)
+ya 3am,ya3m,يا عم,ياعم|bro / dude
+ya m3alem,m3alem,يا معلم,معلم|boss / master
+ya osta,usta,ياسطا,اسطى|boss / dude
+ya ghaly,ya ghali,ghali,يا غالي,غالي|dear one
+shabab,shbab,شباب|guys
+banat,بنات|girls
+ya jama3a,jama3a,يا جماعه,جماعه|guys / everyone
+ya sater,ya satir,يا ساتر|oh my goodness
+ya salam,يا سلام|wow / oh my
+ya 7asra,ya hasra,يا حسره|what a shame
+yalla,yala,يلا,يالله,ya allah|let's go / come on
+yalla bye,يلا باي|ok bye
+aywa keda,ايوه كده|that's it! yes, like that
+3ala fekra,3ala fikra,على فكره,3la fekra|by the way
+fe3lan,fi3lan,فعلا|really / indeed
+bsra7a,bsara7a,بصراحه|honestly
+ba3d eznak,ba3d iznak,بعد اذنك|excuse me
+law samaht,lo samaht,لو سمحت|please / excuse me
+min fadlak,min fadlik,من فضلك,plz,pls,بليز|please
+itfaddal,etfadal,tfadal,تفضل|go ahead / here you go
+tekram,تكرم|you're welcome / at your service
+tkfa,tekfa,تكفى,تكفا|please, I beg you (Gulf)
+fazaa,fz3a,فزعه|help / backup (Gulf)
+stanna,estana,استنى,stna|wait
+ta3al,ta3ala,تعال,تعالى|come here
+rou7,rooh,روح|go
+lazim,lazem,لازم|must / have to
+yemken,يمكن|maybe
+moshkela,mushkila,مشكله,mshkle|problem
+mesh moshkela,mafi moshkela,مش مشكله,ما في مشكله|no problem
+shlon,شلون|how (Gulf/Iraqi)
+3ad,عاد|so / then (Gulf)
+dyal,ديال|of / belonging to (Moroccan)
+3afak,عافاك|please (Moroccan)
+ghadi,غادي|going to (Moroccan)
+safi,صافي|that's it / okay (Moroccan)
+dakika,da2i2a,دقيقه|minute
+sa3a,ساعه|hour
+yom,يوم|day
+leil,layl,ليل|night
+sabah,صباح|morning
+shahr,شهر|month
+sana,sene,سنه|year
+sa3b,صعب|hard
+sahl,سهل|easy
+mo tabe3i,mish tabe3y,مو طبيعي,مش طبيعي|insane / unbelievable
+masa5ra,مسخره|ridiculous
+7zeen,حزين|sad
+za3lan,زعلان,za3lana|upset
+zah2an,za7a2an,زهقان|bored
+ta3ban,t3ban,تعبان,تعبانه|tired / sick
+na3san,نعسان|sleepy
+ju3an,ga3an,جوعان,جعان|hungry
+mabsut,mabsoot,mabsout,مبسوط,fer7an,farhan,فرحان|happy
+3asbi,3asabi,عصبي|angry / uptight
+khayef,5ayef,خايف|scared
+ghaby,gaby,غبي|stupid
+ya 7ayawan,يا حيوان|you animal (insult)
+ekhs,akhs,اخس|shame on you! / ugh
+tfo,tfou,تف|ugh / yuck
+dahaktni,dahktny,ضحكتني|you made me laugh
+bamoot men el d7k,بموت من الضحك,موت من الضحك|dying of laughter
+lol,lool,lmao,xd|haha
+omg,اوه ماي جاد|oh my God
+brb,برب|be right back
+rtwt,ريتويت,retweet|retweet
+follow,فولو,متابعه|follow
+block,بلوك|block
+story,ستوري|story
+trend,ترند,تريند|trending
+hashtag,هاشتاق,هشتاج|hashtag
+like,لايك|like
+comment,كومنت|comment
+share,شير|share
+dm,دي ام,خاص,5as|DM / private message
+screenshot,سكرين شوت,scrinshot|screenshot
+online,اونلاين|online
+offline,اوفلاين|offline
+3lek,3alek,عليك|on you
+yslmo,ysalmo,يسلمو|thanks (bless you)
+7ta,hata,7ata,حتى|even / until
+ya rayt,yarait,يا ريت|I wish / hopefully
+ya ba5t,يا بخت|lucky you
+ya khabar,يا خبر|oh my! (shock)
+ya nahar eswed,يا نهار اسود|oh no! (what a black day)
+ya ra7ma,يا رحمه|oh my / how awful
+ya wad,يا ولد|hey dude (Egyptian)
+3agebni,3agbny,عاجبني|I like it
+mesh 3agebni,مش عاجبني|I don't like it
+ma tkhafsh,matkhafsh,ما تخافش|don't worry
+matez3alsh,متزعلش|don't be upset
+7a2ek 3alya,حقك عليا|my bad / I apologize
+dayman,daiman,دايما,دائما|always
+abadan,ابدا|never / not at all
+sa3at,ساعات|sometimes
+kaman shwaya,كمان شويه|in a bit
+7ader,hader,حاضر|will do / yes sir
+3ash,عاش|bravo / well done
+3ala kol 7al,على كل حال|anyway
+bardo,bardu,برضو,برده|also / still / again
+lessa,lsa,لسه,لسا|still / not yet
+khalli balak,5ally balak,خلي بالك|be careful / watch out
+dir balak,دير بالك|be careful (Levantine/Iraqi)
+sebak,سيبك|forget it / leave it
+sebni,سيبني|leave me alone
+a7san,احسن|better / best
+a7la,احلى|sweeter / best
+awel,awwal,اول|first
+akher,اخر|last
+meen da,مين ده|who's that?
+nokta,نكته|joke
+ba2a,بقى,بقا|so / then (Egyptian filler)
+kfaya,كفايه|enough
+wad,ولد|boy / guy
+bent,بنت|girl
+rageel,rajel,راجل,رجل|man
+sitt,ست|lady / woman
+3amo,عمو|uncle (friendly)
+tante,تانت|auntie
+nas,ناس|people
+nafsi,نفسي|I wish / I'd love to
+fkra,فكره|idea
+ghaleban,غالبا|probably
+7aqiqy,حقيقي|real / true
+3ala 7asab,على حسب|depending
+a2dar,اقدر|I can
+mesh a2dar,مش اقدر|I can't
+mt2kd,mt2akd,متاكد|sure
+tab,tb,طب|well / then
+mashakel,مشاكل|problems
+ahla wa sahla,اهلا وسهلا|welcome
+hamdillah 3ala salama,الحمدلله على السلامه|glad you're safe / welcome back
+shu fi ma fi,شو في ما في|what's up?
+shu hal 7aki,شو هالحكي|what's this talk? (come on)
+ma3ak,ma3ik,معك|with you
+tikram 3enak,تكرم عينك|your wish is my command
+sahtein,sa7tein,صحتين|enjoy your meal
+sa7a w 3afye,صحة وعافيه|bon appétit / well done
+bala,بلى|yes (to a negative question)
+3ayb,عيب|shame / improper
+ya 3eib el shoum,يا عيب الشوم|shame on you
+3ala rasi,على راسي|with pleasure (on my head)
+3ala 3eeni,على عيني|with pleasure (on my eye)
+bkaffi,بكفي|that's enough
+mshan,mishan,مشان|because / for (Levantine)
+bheb,بحب|I like / I love
+7aki,7ki,حكي|talk
+hayyak,حياك|welcome / hi (Gulf)
+ya hala,يا هلا|hello / welcome (Gulf)
+nawart,nawwart,نورت,نورتي|welcome (you light up the place)
+3ala toul,على طول|right away / straight
+inzain,inzayn,انزين|okay then (Gulf)
+mara,مره|very (Gulf)
+tara,ترى|you know / note that (Gulf)
+hadha,هذا|this (m)
+hathi,هذي|this (f)
+3asal,عسل|honey / sweetie
+zahma,زحمه|traffic / crowded
+salfa,سالفه|story / matter (Gulf)
+khoya,khuya,خوي,خويي|buddy (Gulf)
+fashla,فشله|showing off
+sawa,سوا|together
+ma3 elf salama,مع الف سلامه|goodbye (a thousand safeties)
+shaku,shlon ma3ak,شكو|what's up? (Iraqi)
+maku,ماكو|there isn't (Iraqi)
+aku,اكو|there is (Iraqi)
+3azizi,3azeez,عزيزي|my dear
+zol,زول|person / guy (Sudanese)
+ya zol,يا زول|dude (Sudanese)
+chna7welek,chnahwelek,شنحوالك|how are you? (Tunisian)
+barsha,برشا|a lot (Tunisian)
+yezzi,يزي|enough (Tunisian)
+3aslema,عسلامه|hello (Tunisian)
+behi,بهي|good / okay (Tunisian)
+yaw,ياو|right? / isn't it (Tunisian)
+wesh rak,واش راك|how are you? (Algerian)
+wesh,واش|what (Algerian)
+kho,خو|bro (Algerian)
+saha,sahha,صحا,صحه|cheers / thanks (Algerian)
+mazal,مازال|still / not yet (Algerian)
+nta,nti,نتا,نتي|you (Maghrebi)
+machi,mchi|not (Maghrebi)
+walo,والو|nothing (Maghrebi)
+3lash,علاش|why (Maghrebi)
+h,hh|haha
+bio,بايو|bio
+profile,بروفايل|profile
+post,بوست|post
+caption,كابشن|caption
+reels,reel,ريلز|reels
+live,لايف|live
+snap,سناب|Snapchat / snap
+followers,فولورز,متابعين|followers
+unfollow,انفولو,الغاء المتابعه|unfollow
+notification,نوتيفيكيشن,اشعار|notification
+viral,فايرال,فيروسي|viral
+fake,فيك,fek|fake
+admin,ادمن|admin
+mute,ميوت|mute
+chat,شات|chat
+group,جروب,قروب|group
+voice,فويس|voice note
+status,ستاتس,حاله|status
+link,لينك,رابط|link
+password,باسورد,كلمه السر|password
+wifi,واي فاي|Wi-Fi
+net,النت,نت|the internet
+ban,بان|ban
+lag,لاج|lag
+gg,جي جي|good game
+afk,افك|away from keyboard
+level,لفل,ليفل|level
+akl,اكل|food
+chai,شاي|tea
+qahwa,ahwa,2ahwa,قهوه|coffee
+mayya,maya,مياه,ميه|water
+3aysh,عيش|bread / life
+hello,هيلو|hello
+bonjour,بونجور|hello (Lebanese French mix)
+bonsoir,بونسوار|good evening (Lebanese)
+salut,سالو|hi / bye (Lebanese)
+ciao,tchao,تشاو|bye (Lebanese)
+bye,باي|bye
+merci,mersi,mrc,ميرسي|thanks (Lebanese)
+hala w ghala,هلا وغلا|hello and welcome (Lebanese)
+keefik,keefak|how are you? (Lebanese)
+keef,kif,كيف|how
+shu 3am ta3mel,sho 3am ta3mel,شو عم تعمل|what are you doing?
+shu ismak,shu esmak,شو اسمك|what's your name?
+min wein inte,من وين انت|where are you from?
+3am,3m,عم|currently doing (Lebanese/Syrian)
+mbala,mbale,مبلى|of course (Lebanese)
+7alal 3aleik,halal 3alayk,حلال عليك|well done / good on you
+yislamo,yeslamo,yislamu|thanks (bless you)
+yislamu 2edeyk,yislamo ideyk,يسلمو ايديك|thanks (bless your hands)
+hek,هيك|like this
+hayda,haida,هيدا|this (m, Lebanese)
+haydi,haydeh,هيدي|this (f, Lebanese)
+hadol,هدول|these
+hallaq,halaq|now (Lebanese)
+2abl,abl,قبل|before
+ba3d,بعد|after
+mbareh,mbari7,مبارح|yesterday (Lebanese)
+hal2ad,hal2add,هالقد|this much / so
+hal ayyam,هالايام|these days
+kell,كل|all / every
+kello,kelon,كلو,كلن|all of it / all of them
+mrattab,mratab,مرتب|fine / all good
+mabsouta,مبسوطه|happy (f)
+mazbout,mazboot,مزبوط,مضبوط|right / exactly / perfect
+tzabbat,tzabat,تزبط|it works out
+zabatit,زبطت|it worked
+7ada,7ad,حدا,حد|someone / anyone
+wala 7ada,ولا حدا|no one
+ma fi shi,ما في شي|nothing / it's nothing
+lek,lak,لك|hey! (Lebanese address)
+khayyi,5ayyi,kheyye,خيي|my brother / dude (Lebanese)
+sa7beti,صاحبتي|my friend (f)
+rafe2i,رفيقي|my buddy
+ma7bubi,mahboubi,محبوبي|my beloved
+7abib albi,7abib 2albi,حبيب قلبي|my darling
+roo7 2albi,روح قلبي|soul of my heart
+ma3 salame,ma3a salame|goodbye (Lebanese)
+khallik,5allik,خليك|stay / keep
+khallina,5allina,خلينا|let's
+jamil,gamil,جميل|beautiful
+jmile,jmeele,جميله|beautiful (f)
+3ajeeb,3ajib,عجيب|strange / amazing
+bsha3,بشع|ugly / awful
+mashi el 7al,ماشي الحال|it's going okay
+shouf,shuf,شوف|look / see
+shoufi,شوفي|look (f)
+isma3,sma3,اسمع,اسمعي|listen
+2oul,2ouli,قول,قولي|say / tell me
+ta3a,تعا,تعي|come (Lebanese)
+sakker,sakkir,سكر|close / shut
+7ot,hot,حط|put
+jib,جيب|bring
+3tini,3tine,اعطيني,عطيني|give me
+2oum,قوم|get up
+2a3ed,قاعد|sitting / staying
+rje3,رجع|come back
+3andi,3endi,عندي|I have
+3andak,3endak,عندك|you have
+3endo,عنده,عندو|he has
+ma 3andi,ما عندي|I don't have
+ma3i,m3i,معي|I have on me
+badde,bade|I want (Lebanese)
+baddak,baddik,بدك|you want
+baddo,baddon,بدو,بدهم|he wants / they want
+baddna,بدنا|we want
+shu baddak,sho baddak,شو بدك|what do you want?
+ma badde,ما بدي|I don't want
+fiyi,fiye,fiyyi,فيي|I can (Lebanese)
+ma fiyi,ما فيي|I can't (Lebanese)
+fi shi,في شي|there's something
+barke,barki,بركي|maybe (Lebanese)
+ma3ool,ma3ouul,معقول|really? / unbelievable
+3am mze7,3am bemze7,عم بمزح|I'm joking
+sama7ni,sama7ne,سامحني|forgive me
+ya rabbi,yarabbi,يا ربي|oh my Lord
+allah yestor,الله يستر|God protect us
+allah ykhalesna,الله يخلصنا|God help us
+wala 3ala bali,ولا على بالي|never crossed my mind
+3ala bali,على بالي|on my mind
+reaction,ريأكشن|reaction
+tag,تاغ|tag
+seen,سين|seen
+repost,ريبوست|repost
+filter,فلتر|filter
+selfie,سيلفي|selfie
+emoji,ايموجي|emoji
+sticker,ستيكر|sticker
+video call,فيديو كول|video call
+voice note,فويس نوت|voice note
+call,كول|call
+missed call,ميسد كول|missed call
+whatsapp,واتساب,واتس|WhatsApp
+insta,انستا,انستغرام|Instagram
+tiktok,تيك توك|TikTok
+facebook,فيسبوك,fb|Facebook
+youtube,يوتيوب|YouTube
+twitter,تويتر|Twitter
+telegram,تيليغرام|Telegram
+bass,bs|but / only / enough
+beit,bayt,بيت|home / house
+shaghel,shghol,شغل|work
+mat3am,مطعم|restaurant
+ahwe,2ahwe|coffee (Lebanese)
+argile,argileh,arguile,اركيله,نرجيله|hookah
+sahra,سهره|evening out / party
+7afle,hafle,حفله|party / concert
+3azime,3azouma,عزومه,عزيمه|invitation / treat
+ya3ne shu,يعني شو|what do you mean?
+ma fi mshekle,ma fi moshkle,ma fi mshkle|no problem (Lebanese)
+tkarram,tkaram,تكرم|go ahead (offering)
+ahla,2ahla|sweeter / best
+fadi,فاضي|free / idle
+mashghoul,mashghul,مشغول|busy
+mnarfez,menarfez,منرفز|irritated / on edge
+mkharbet,mkharbit,مخربط|confused / messed up
+2awe,2awi|very / strong (Lebanese)
+jiddan,jidan,جدا|very
+tbdel,tbadal,tbaddal,تبدل|swap / switch
+badel,bdel,بدل|swap / replace
+ybdlne,ybadlne,يبدلني|swap me / cover for me
+bdloue,bdlouwe,bdloni,بدلوني|they swap me / relieve me
+badlo,baddlo,بدلو|swap him / replace him
+shbeb,shbb,شبيب|guys (Lebanese)
+hda,hada|someone
+5 min,5 mins,5 minutes|5 minutes
+camion,camio,كاميون|truck
+fourchetier,fourchtier,fourchettier|forklift driver
+emballage|packaging
+carton,كرتون|cardboard box
+lb3don,lba3don|who I count / the ones I'm counting
+y3malon,ya3malon|he's doing them / they do them
+ntor,ntar,انطر,نطر|wait (Lebanese)
+ntoron,ntorhon,نطرون|wait for them
+la y5laso,la ykhalso|so they finish
+y5laso,ykhalso,y5lso,ykhlso,يخلصو|they finish / will finish
+5lso,khalso,5also,خلصو|they finished / finish (pl.)
+5alsohon,khalsohon,خلصهن,خلصوهن|finish them / they finished them
+3mlole,3mlouli,عملولي|do for me (pl.)
+w3don,wba3don|and I count them
+wla sho,wla shou,ولا شو|or what?
+3ndon,3endon,عندن|they have
+hbb,hbbe,hbibe|dear / habibi (chat short)
+ade,adde,addeh|how much / how many (short)
+fe|there is / there are
+khye,khayye,5ye|my brother
+meshe,meshi,مشي|okay / going (walking)
+2nh,2enno,2enne,2inno,انه|that / because (Lebanese)
+bald,balad,بلد|town / country / city
+2okd,2akked,2a2ked,اكد|confirm
+tkel 3a alah,tekel 3a 2alah,tkl 3a alah,tawakkal 3ala allah,توكل على الله|go ahead / let's go (rely on God)
+b 3inak,b 3enak,be 3enak,ب عينك|please (lit. by your eye)
+eh,2eh|yes (Lebanese) / what (Egyptian)
+yratbo,yrattbo,يرتبو|they arrange / tidy
+kmn,kmen,kman,كمان|also / more / again
+shwy,shwayy|a little (chat)
+ma be aser,ma b2aser,ma byaser,ما بيأثر|it doesn't matter
+sawerle,sawwerle,sawerli,صورلي|take a pic for me
+sowar,صور|pictures
+b zabet,bzabet,bi zabet,bi zabt,بالضبط|exactly (Lebanese)
+sawbak,sawbk,sawbik,صوبك|toward you / your way
+m3sh,m3esh|not (chat spelling)
+byan,bayyen,بيان|visible / showing up
+sar,صار|done / okay / happened / became (Lebanese)
+wen sar,wein sar,وين صار|where did it go? / what happened?
+sarle,sarli,صارلي|it's been (time) for me
+bhke,b7ke,bhki,بحكي|I'm saying / I'm talking
+hamlo,7amlo,7mlo,حملو,احملو|load it / carry it
+3a,3al|on / at / to (Lebanese)
+lkn|but (chat)
+teje,tiji,تيجي|you come / comes
+bs teje,bas teje,بس تيجي|as soon as you come
+shagal,shaghal,shaghghal,شغال|working / running
+shaggelle,shaggeli,shaggel|run it / switch it on
+nsas,nus,nos,نص|half
+robo3,rob3,ربع|quarter
+menon,mnon,منن,منهن|some of them
+yehon,yihon|them
+la shofon,la shoofon|so I can see them
+shofon,shoofon,شوفن|see them
+ennon,2ennon|that they
+li,elli,illi,اللي,الي|who / that / which
+ma byshtglo,ma byeshteghlo,ما بيشتغلو|they're not working
+byshtglo,byeshteghlo,بيشتغلو|they work
+eloole,2olle|tell me
+3annon,3anhon,عنهن|about them
+l3al|those on / the ones on
+elo,ilo,2elo|he/it has / for him
+rah,ra7,رح|will (future marker)
+3nde,3ande|I have
+w,و|and
+ya,يا|hey / oh
+l|the
+bl,bel|in the
+blesh,blash,بلش|start / began
+blsho,blasho,blshto,بلشوا|they / you started
+eleb,3eleb,علب|cans / boxes
+ma3|with (Lebanese)
+alak,2alak,2allak,قالك|told you / said to you
+enu,2enu,انو|that / because (Lebanese)
+yeb3thon,yeb3ethon,yb3thon,يبعثهن|he sends them
+2w shu,2w sho,او شو|or what?
+2w,aw,او|or
+allah b 3inak,allah b 3enak,الله بعينك|please (God by your eye)
+tanak,tank,تانك|tank
+mn,men|from
+fard mara,fard marra,فرد مره|once / one time
+abl ma,2abl ma,قبل ما|before
+saker,tsaker,tsakker|close / shut off / finish up
+range,rangee|row (stacked row, French)
+be3etlak,b3etlak,b3tlak,بعتلك|I sent you
+b3tle,b3atle,بعتلي|he sent me
+hene,hena,هني|here
+le|who / that (Lebanese li)
+hammel,7ammel,حمل|load (imperative)
+t2kad,ta2akad,t2akad,تأكد|make sure / check
+esem,esm,ism,اسم|name
+mktoub,maktoub,مكتوب|written
+ba3ed ma,ba3d ma,بعد ما|after
+haya,heyye,heyi,هيي|she / it (f)
+ye5od,yakhod,yekhod,ياخد,يوخد|he takes
+b3ed,ba3ed|still / yet
+tb3at,tib3at,تبعت|you send
+hyda,hida|this (m)
+hyde,hide,هيدي|this (f)
+l3ende,li 3ende|that I have / that's with me
+b7amlo,bhammel,b7ammlo,بحملو|I load it
+fesh,fish,fsh,فش|there isn't / none
+was3aa,wase3a,wasi3a,واسعه|spacious / room
+sha8al,sh8al|working / running
+sboh,sbohh,sbo7|morning (early)
+hb,7bb,7b|dear / habibi (short)
+lzm|must / need to
+nbalesh,nballesh,nblesh,نبلش|we start
+drori,drore,daroori,ضروري|urgent / necessary
+ensa,nsa,انسى|forget / forget about it
+ane,2ane,2ne|I (Lebanese)
+w3am|and I'm currently
+3ed,3add,عد|count / counting
+cartons|cartons / boxes
+l2et,la2et,la2ayt,لقيت|I found
+3ndk,3ndak|you have / with you
+kn,kan,كان|was
+treko,tarko,trko|leave it / let him be
+kber,kbir,كبير|big / boss (address)
+ya kber,ya kbir,يا كبير|boss / big guy (friendly)
+ente,inte|you (Lebanese)
+khales,5ales,khalles|finish / finished
+t5ales,tkhales,tkhls,تخلص|you finish / when you finish
+tht allah,tht alah|go ahead / please (tawakkal 3ala allah)
+absher,abshir,ابشر|consider it done / will do
+tabdeil,tabdil,tabdeel,تبديل|swap / shift change
+rayeh,rayih,رايح|going / heading
+mojehed,mujahid,مجاهد|fighter (joking nickname)
+jende,jindi,جندي|soldier
+majhoul,majhoull,مجهول|unknown
+majhoulona,majhoulouna|our unknown (ones)
+l2rd,el ard,الارض|the earth / ground
+m3rofona,ma3roufna|our known (ones)
+sma2,sama,سماء,سما|sky
+nshalla,nshalah,nshallah,inshalla|God willing
+tnen,tnein,itnein,اثنين|two
+swa|together
+eza,iza,ezza,اذا|if
+btzbt,btezbat,btzbat,بتزبط|it works out
+kam,كم|how many / how much
+yojad,yoojad,يوجد|there is / there are (formal)
+fel,fil,fl|in the
+camyonan,camyonayn,كاميونين|the two trucks
+3rabe,3arabe,3rabi,3arabi,عربي|Arabic
+ma beser,ma byseer,ma biser,ما بصير|it can't be / that's not okay
+hal|this (hal + noun)
+sho8l,shoghl,sh8l|work / business
+ad ma,adde ma,قد ما|as much as
+fihon,fehon,فيهن|in them / they can
+yshlo,yeshilo,يشلو|they carry / take
+wara,wra,ورا|behind
+lenu,li2ennu,le2ennu|because (Lebanese)
+yemshe,yemshi,يمشي|he goes / he leaves
+eb3at,ib3at,ابعت|send (imperative)
+oki|okay
+5le,5alle,5alli|let / keep (imperative)
+fourshtyer,fourshtier,forshtyer|forklift driver
+l3l|those on / the ones on
+wayno,weino,وينو|where is he / where is it
+bdlna,baddalna,بدلنا|swap us
+huwe,howe|he (Lebanese)
+bdloune,bdlouni|swap me / relieve me
+we7de,wa7de,wahde,واحده|one (f)
+b3tebra,b3tebr,bi3tebir,بعتبره|I consider it / I think it's
+8alat,8alta|wrong / mistake
+y3mlo,ya3mlo,يعملو|they do / they're doing
+woa sho,w2a sho|or what? (typo)
+bara,barra,برا,برة|outside
+haten,hatten,hatan,حطن|they put them
+shofa,shufa,شوفه|I saw it / look at it
+jowa,jwa,juwa,جوا|inside
+bkono,bikuno,بكونو|they'll be / they must be
+mghalten,mghalaten,مغلطين|mistaken (pl.)
+3mltla,3amaltla,عملتلا|I did it for her / for it
+tol3et,tle3et,طلعت|it turned out / came out
+ananas,اناناس|pineapple
+l3mlenla,la3mlenla|so they do it for me
+meshe l7al,meshi l7al,meshe el 7al|it's going okay / fair enough
+wosel,wsel,wasal,wasel,وصل|arrived
+ynzel,yenzel,ينزل|he unloads / goes down
+notre|our (French)
+natrenon,natarenon,natrhon|wait for them
+l ykhlso,la ykhlso,l y5lso|until they finish
+bdkon,baddkon,بدكن,بدكم|you (pl.) want
+tnzlo,tenzlo,تنزلو|you (pl.) go down / unload
+3l|on the / to the
+bado,baddo|he wants
+azdak,azdk|you mean
+yolt3,yolta3|come
+ta3|come
+kedal,kidal|kedal (place name)
+maffria|maffria (place name)
+bah|bah
+b3d amrkon,ba3d amrkon,b3d 2mrkon,ba3d 2mrkon|with your permission (excuse me, guys)
+amrkon,2mrkon,amrak|your order / your command (pl.)
+b3d|after / still
+allah,alah,2alah,الله|God
+alh|God (short)
+b|in / with / at (b-)
+y|hey (short for ya)
+ma|not / don't
+wa,wl|and
+wel|and the
+7a|will (future marker)
+3la,3le,3lyha|on / about / on him
+aam|currently doing (3am)
+aal|on
+lal,lel,lil|to the
+fo2,fou2,فوق|up / above / upstairs
+tene,tane,tani|second / other
+ta7et,tahet,t7et,t7t,تحت|under / below
+janab,jnab,جنب|beside / aside / next to
+bara,برا|outside
+w2ef,we2ef,w2f,wa2ef,wa2f,وقف|stop / stopped / standing
+l5at|line
+ysof,ysoof,ysef,يصف|park / line up (a truck)
+safef,safif,lsafef|parked / lined up
+tklna 3a allah,tklna 3a alah,tklna 3alah,tklna|let's go (rely on God)
+tekel 3a allah,tekel 3a alah,tekel 3alah|go ahead / let's go
+tekel,tkel|go ahead (rely on God)
+de2,d2,دق|call / knock / ring
+d2lo,d2o|call him
+d2y2,d2i2a,da2ayi2,دقايق|minutes
+wd3,wade3,wad3,وضع|status / situation
+cour,kour,court|cour
+hk,hek|like this (short)
+war2a,wara2a,war2et,ورقه|paper / document
+nfawter,fawter,fwter,fawtro|invoice / to invoice
+sodefa,sudfa,صدفه|by chance / coincidence
+5toot,khotout,خطوط|lines (production lines)
+ma3ash,ma3ad|not anymore / no longer
+yodhar,y7der,yhder,yo7dar|he arrives / gets ready
+8ayro,ghayro,غيره|another / someone else
+shrik,sharik,شريك|partner / buddy (address)
+na2es,nakes,ناقص|missing / short / less
+ra2em,raem,ra2m,رقم|number
+mishe,mishi,mashe,meshee|okay / alright
+mishi l7al,mishe l7al,mashe l7al,mashi l7al|it's going okay / fair enough
+ba3do,ba3don|he / it is still / still
+ba3delo,ba3dlo|still has / still (for him)
+thmil,thmel,tahmeel,تحميل|loading
+nazel,nezel,nezl,nzl,tenzel,yenzal,ynazel,bnzel,nazlo,nzal,نزل|unload / go down
+3ende,3end|I have / at my place
+b3inkon,b3enkon,b3inak,b3enak|please (by your eye)
+hl2,hlaa,halaa|now (chat)
+mktab,mktb,maktab,مكتب|office
+eltlo,2eltlo,2oltlo,قلتلو|tell him / I told him
+bkon,bikoun,بكون|maybe / it'll be
+nater,natir,nateer,ناطر|waiting
+tari2,tare2,tareeq,طريق|road / way
+hket,7ket,7keet,حكيت|I talked / I spoke
+bdo,bdu|he wants
+bdk,badak|you want
+bdna|we want
+tebdil,tbdil,tebdeel|swap / shift change
+jey,jay,jeye,jayi,jeyi|coming
+yeje,yje,yeji|he comes / will come
+eja,aja|came
+jetak,jitak|came to you / coming to you
+mni7|good / fine
+tla3,tole3,yotl3,yotla3,ytlaa,ytl3|come up / go up / come out
+yo5las,y5las,by5lss|gets finished / finishes
+5oles,5ols,5ls,kholes,kales,khls,5las|finish / done
+7amel,hamel,7mel,hmlo,yhmlo,y7amel,bhmlo|load / loads / loading
+yshil,yshel,yshl,yeshel|he carries / takes away
+y7oto,yhoto,ma7tota,m7toten,hotna|they put / placed / we put
+7atet,hatet,7at|put / placed
+yjebo,yjibo,yejibo|they bring
+zbon,zboun,زبون|customer / client
+law sama7et,lo sama7et|please / excuse me
+se3a|hour / time
+shofer,shufer,chauffeur,chuffer,chufer,شوفير|driver
+camayin,camionen,camyonen|trucks
+kahraba,kahrba,كهربا|electricity / power
+saret,saro,sarit|it happened / it became
+taleb,talab,طلب|request / order
+ya3tek el 3afye,ya3tek l3afye|more power to you
+feye,fiyeh|I can
+feh,fii,fe7|there is / there are
+feha,fiha,fiya|in it / it has
+adeh|how much
+aandk,aandak,aand|you have
+lendak,lndak,l3ndak|to you / at yours
+shabeb,shhbeb,shhheb,chabeb,shebb,shheb,shhab|guys
+kl,kel,kal|all / every
+wala,wl|or / nor
+wa7ad,wahad,whad,wahd,wa7ed|one (m) / someone
+2aya,aya|which
+yla,ylh,yalah|let's go (short for yalla)
+ehh,ee|yeah / yes
+okk|okay
+tamem|okay / fine
+5aye,5ayi,khaye,5ay|my brother
+khale,5ale,khalehon,5alehon,khaliha|let / keep (him/them)
+7da|someone
+meshkle,meshkli|problem
+awal|first
+shof,shofo,shoof,shufo|look / see
+zabet|fixed / sorted / exactly
+ad|how much / as much as
+tawel,tawil,tawiil|long
+2al,2ale,2alo,2alet,قال|said
+lyum,lyoum|today
+nhar,nahar,نهار|day / day shift
+stock,stok|stock / inventory
+kaman|also / more / again
+hmem,hmam,hammam,hamam,حمام|bathroom
+fout,fot,fut|go in / go
+forshtier,forchitier,forshet,fourchette|forklift (driver)
+palet,paletet,palettes,palete|pallets
+transpalet|pallet jack
+canet,canette,canettes,cannettes,cannittes,caneet|cans
+melange,melang,melnag,melnage|mix / blend (mélange)
+chef,shef,alshef,chief|boss / chief
+client|client / customer
+equipe|team (French équipe)
+voyage,voiyage,voyag|trip / long trip
+pour|for (French)
+fade|empty / free
+b3at,ba3at,b3to,b3ato|sent / he sent / send
+b3atlak,b3atelak,b3tlk|I sent you / sent to you
+b3tli,b3atli|sent me / send me
+b3tole,b3atolo,b3atulo|sent him / sent to him
+habebe,7abebe|dear (f)
+ele,elle|who / that / some
+hye,hya,haye,hayeh,heyye|she / it (f)
+heda,hydaa|this (m)
+m3o,ma3o|with him
+m3on,ma3on|with them
+m3k,m3ak|with you
+shgal,shagale,sha8ele,shaghile,shta8al|working / works
+mbayen,mbyen|visible / showing
+ybdlni,ybadelni|swap me
+badlt,baddalt|I swapped / swapped
+bdlnh,bdlonh,bdlo|swap him
+alf,الف|thousand
+3ade|normal / no big deal
+kbeer|big / boss
+nehna|we
+3anon|about them
+meno,minno|from him / of him
+mna,minna|from us
+bss|but / only
+3shen|because
+lish|why
+sabho,soboh|morning
+balasho,balesh|they started / start
+sipas,sipa|sipas
+sheta,shita,sheti,شتا|rain
+perce|perce
+kerml,kermel,kirmal,كرمال|for the sake of
+marid,mrid,مريض|sick
+3added,3aded,3adadet,3ado,3edo,3edon,3edton,3adayton|counted / count (verb)
+n3ed,yn3ad,yen3ad,bt3ed|we count / gets counted / you count
+l3adad|the count / number
+3malle|did for me / made for me
+3malo|they did
+3malolo|they did for him
+3melto|you (pl.) did
+3mliyyi,3amaliyye|operation / process
+m3mal,ma3mal,m3ml|factory
+mn3mal,n3amal|we do / we make
+yn3amal,yen3amalo,byn3malo|gets done / are done
+te3malou|you (pl.) do
+na3mlon|we do them
+y3ml,y3mloo|he does / they do
+ya3mlolon|they do for them
+3alimkoun,3alamkon|let you know / inform you
+3lykon,3alaykon|on you (pl.)
+3lyna|on us
+3layha|on her / on it
+3layhoun,aalyhon,aalyun|on them
+3an,3n|about / from
+3ala,3la|on / upon
+3afieh,aafyee|good health / well-being
+b3den,baaden|later / afterwards
+b3ata,b3atou,b3atoun|they sent
+b3atohonn,be3tinon,eb3ton|send them / sent them
+be3to,b3to|he sent / they sent it
+eb3to|send (pl.)
+teb3at,tb3at|you send
+yb3at|he sends
+ynba3at,yenba3at,ynba3ato|gets sent
+7ammal|loaded / load
+yt7ammal,byet7amal,yenhamal,yethamalo|gets loaded
+hamlina|load for us
+stoket,stocket,stockeit,stocks|stock
+stoketkon|your stock (pl.)
+stoko|his stock
+embarque,embarqué,embarquement,embarquent,embarqeument,enbarquement,enbarpue,embarpue|loading / shipment (French embarquement)
+pâqutes,pâqettes,pâqetes,packet,pack|packs / packets
+perecer,perces,percè,percé,percés|perce
+embalage,d'embalage|packaging (French emballage)
+chaîne,chaine|line (French chaîne)
+quantité|quantity
+étiquette|label
+classement|sorting / classification
+daftar,dafter,dafeter,dafetir|notebook / register / log
+makana,makane,makina|machine
+ken|was
+keno,kenu|they were
+y3ne,y3ni,yaani|I mean / like
+eno,enno|that / because
+5tout,l5tout|lines
+mzboot,mzbot,mazbot|right / correct / fixed
+zabeet,zabtaa,zbta,zabatou|fixed / sorted / they fixed it
+btzbatt|it works out
+tzbit|fixing / sorting
+mawdou3,mwdoo3,mwdou3,mwdu3,lmawdou3|subject / matter / topic
+mawjoud,mawjod,mwjod,mwjood,mwjud|present / available / there
+mwjodin|available (pl.)
+zyede,zyidi,zyade|extra / more
+sha8ili,sha8li,shaghli|my work / my job
+shgle,shglo|his work / its work
+shglkon|your (pl.) work
+yshtgel|he works
+yshtglo,shtglo|they work
+shagalin|working (pl.)
+mshkel,mshkli,mashekil|problem / problems
+mas2oul|responsible
+mas2ouliye,mas2ouliyee|responsibility
+nehki,nhki|let's talk / we talk
+7akit,hkit,7keyet|I talked / I said
+y7ke|he talks
+yhko|they talk
+7lool|solutions
+khabar,5abar|news / info
+khabart,khbrt|I informed / I told
+khbrna|tell us / inform us
+5abro|tell him / inform him
+bt5abro|you tell him
+5abriyyi,khabreyee|tell me / let me know
+2ali,2alli|told me / said to me
+2ana,2ani|I
+2ar2am|numbers
+2aslan|actually / in the first place
+2ella|except / but
+2ibtide2an|starting from
+2imshi|go / walk
+2inshallah|God willing
+2iza|if
+2izin|permission
+2moor|matters / things
+2om|get up
+2rit|I read
+2w2at|times / hours
+aande,3ande|I have
+aandu,aanu,3ndo,3ando|he has
+3ndi|I have
+3ndkon,3endkon|you (pl.) have
+5alona,5alinee|let us
+5lsna|we finished
+5yeh|my brother
+8alt,8lat,galat,l8lat|mistake / wrong
+8altan|mistaken
+a5ta2|mistakes
+aktar,a2ter|more
+ashal|easier
+abel,2abel|before
+l2en,le2n,la2no,le2anou,lenno|because
+l2red|the ground
+l2ula|the first (f.)
+asesan,asasan|basically / in principle
+esmo|his name
+asma2on|their names
+b3rf|I know
+bfham|I understand
+bfhmokon|I'll explain it to you (pl.)
+fahmen|understanding / got it (pl.)
+fahmoha|explain it / understood it
+fahmole|explain to me
+nfham|we understand
+yfhamo|they understand
+badna|we want
+badou|he wants
+bdalet|I swapped / replaced
+ektob|write (imperative)
+tektob|you write
+yktbo|they write
+ktbto|you (pl.) wrote
+kteba|writing
+ktob|write / they wrote
+ynkatab,yenkatab|gets written
+bnfta7|we open
+byeftah,yfta7le|he opens / open for him
+bnsker|we close
+bnzal,enzal|we unload / unload (imp.)
+br2ye,bra2yi|in my opinion
+rja3,brja3,byrja3|come back / I come back / he comes back
+bsbab,bsabab|because of
+bshra7,bshar7|I explain / explaining
+bstlem,bystlem,ystlem|I receive / he receives / receive
+lmstlem|the receiver
+bt2olo|you tell him / you say
+btmro2,bymro2|you pass by / he passes by
+btnabhou,nabhou|you warn them / warn them
+btsir,ysir|it happens / becomes
+sir|go / go ahead
+by5da,by5don,y5do,e5od|he takes / they take / take (imp.)
+byemshi|he goes / leaves
+byroo7|he goes
+bysaffer,bytsaffar,ysafro,ysafrou,tsafrou,tsfir|ship out / dispatch / travel
+bywa2ef,yw2ef|he stops (something)
+byetbadal,yetbadal|gets swapped / is replaced
+byt2akad,yt2akad|gets confirmed / checked
+byn7at|gets placed
+bye2dar,by2dar|he can
+darar|damage / harm
+dawem,dawam|work hours / shift attendance
+dgre,do8re,dogri|straight / directly
+dy3a,dayaa3|lost / wasted
+edem,adeem|old
+ekher,ekhir,e5er|last / end
+elet|I told
+eltle|tell me / told me
+elkon|for you (pl.)
+elna|for us
+eltizem|stick to / commit to
+equipet|team (équipe)
+f3lyan,fe3lan|actually / really
+fawto|they invoiced / invoice them
+haliyan,halyen,halyan|currently / right now
+hasab,7asab|according to / depending on
+hases,7ases|I feel
+hawdi|these
+heida|this (m)
+hl2ad|this much / so
+hta,hatta|even / until / so that
+jdid,ljdid,jadid|new
+kafi,kefi|enough
+kelkon,kilkon|all of you
+klshi|everything
+khalinee,5alini|let me
+krmel,krmal|for the sake of
+l7al,el7al|the situation / the state
+lbe2i,lba2i|the rest
+lma,lamma|when
+lmhm|the important one
+lozzom,lozom|need / necessary
+m3|with (short)
+m3eh,m3u|with him
+m3kon,m3koun|with you (pl.)
+m3na,me3na|meaning / with us
+me3i|with me
+mafrod,mafroud,mfrood|supposed to / should
+mamnou3|forbidden / not allowed
+marra|once / one time
+mbere7|yesterday
+mene,menne,menno|from him / from it
+mne7seb,ne7seb,no7si|we count / calculate
+mktob|written
+mnazzam,mnzmina|organized
+mniha|good (f)
+mslan,masalan|for example
+nou3,no3|type / kind
+nw3iyet|types / quality
+na2esonn,na2sa|missing / short
+nesbi,nesbe|ratio / percentage
+nkoun,tkoun,tkoon,tkono,ykon,ykoon,ykoun|will be
+nmshe|we go / we proceed
+no2dar|we can
+nratteb|we arrange / tidy
+nsitt,nesit,nesi|I forgot / forgot
+nfs,nafs|same / self
+oke|okay
+ossa,osse,2osse|story / matter / issue
+sa3be|hard (f)
+sabaho|morning
+saf7a,safha|page
+salamak,salamtak|thank you (bless you)
+saraha|honestly / frankly
+sarlna,srlnaa|we've been (time)
+sarou|they became
+shakhes,shakhs|person
+shoo|what
+shoofo|look at him
+sma3o|listen (pl.)
+sob7|morning
+t7sbo|you (pl.) calculate / count
+tabi3i,tabi3y|natural / of course
+taba3,tab3|belonging to / of
+temem|done / okay
+teni,tenye|second / other
+terkib,tarkeeb|installation / assembly
+tl3|come up / go up
+tofsil,tafsil|detail
+tsjil,tasjil|logging / recording
+tari2a,tri2a|method / way
+woslett,wsolet|I arrived
+wr2a|paper / document
+y2ol,y2oul|he says / he said
+y3idou|they redo / repeat
+y3tikoun,yaatikoun|he gives you (pl.)
+y3tou|they give
+y5alou|they let / leave
+y7awel,yhawel|he tries
+y7sb,yhsb|he counts
+ydaber|he manages / handles
+ydal|remains / stays
+ye5do|they take
+yensa|he forgets
+youtla3ou|they come up
+youm,yum|day
+yt2antaj,yentaj|gets produced
+yt5ad|gets taken
+yusal,yosal|arrives
+bada,bda|started / began
+ma7i|erase / delete
+fa|so / then
+الانتاج|production
+الفعلي|actual
+المفروض|supposed to / should
+واضح|clear
+ينعرف|gets known
+sily|sily
+kabas|press
+mnazamin|arranged
+ze2eb|wolf
+tn3at,tn3ad|count
+brke,brki|maybe
+`;
+
+const norm=s=>s.normalize('NFD').toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/(.)\1{2,}/gu,'$1').replace(/\s+/g,' ').trim();
+let ENT=[],DICT=new Map(),ENTBY=new Map();
+function build(rows){ENT=rows.map(r=>({k:r.k,v:r.v}));DICT=new Map();ENTBY=new Map();ENT.forEach(e=>e.k.forEach(k=>{const n=norm(k);if(n){DICT.set(n,e.v);ENTBY.set(n,e)}}))}
+build(RAW.trim().split('\n').map(l=>{const[k,v]=l.split('|');return{k:k.split(','),v}}));
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const edge=w=>w.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/su).slice(1);
+const LAUGH=/^(ه{2,}|(ha){2,}h?|(he){2,}|ahaha+|😂+)$/i;
+const PRE=[[/^(?:bel|bl|بال)(.{3,})$/,'in the '],[/^(?:el|al|l|ال)(.{3,})$/,'the ']];
+function pre(k){for(const[r,t]of PRE){const m=k.match(r);if(m&&DICT.has(m[1]))return t+DICT.get(m[1])}}
+let nHit=0,nUnk=0;
+function line(s){
+  const w=s.split(/\s+/).filter(Boolean),o=[];let i=0;
+  while(i<w.length){
+    let ok=false;
+    for(let n=Math.min(4,w.length-i);n>=1&&!ok;n--){
+      const c=w.slice(i,i+n),p=c.map(edge),raw=p.map(x=>x[1]).join(' ');
+      let h=DICT.get(norm(raw));
+      if(!h&&n===1&&LAUGH.test(raw.toLowerCase()))h='haha';
+      if(h){o.push(esc(p[0][0])+`<span class="hit" data-k="${esc(norm(raw))}" title="${esc(c.join(' '))}">${esc(h)}</span>`+esc(p[n-1][2]));nHit++;i+=n;ok=true}
+    }
+    if(!ok){const[a,core,z]=edge(w[i]),h=core&&pre(norm(core));if(h){o.push(esc(a)+`<span class="hit" data-k="${esc(norm(core))}" title="${esc(core)}">${esc(h)}</span>`+esc(z));nHit++}else if(core){o.push(`<span class="unk">${esc(w[i])}</span>`);nUnk++}else o.push(esc(w[i]));i++}
+  }
+  return o.join(' ');
+}
+const DEF='Tap a green word to suggest a change, or an orange word to add it.';
+function run(){nHit=nUnk=0;const t=$('in').value;$('out').innerHTML=t.trim()?t.split('\n').map(line).join('\n'):'Translation shows here.';$('stat').textContent=t.trim()?`${nHit} translated, ${nUnk} unknown (orange)`:DEF}
+function stats(){$('gs').textContent=`Browse the glossary (${ENT.length} entries, ${DICT.size} spellings)`}
+function list(){const q=norm($('q').value);$('list').innerHTML=ENT.filter(e=>!q||e.v.toLowerCase().includes(q)||e.k.some(k=>norm(k).includes(q))).map(e=>`<div data-k="${esc(norm(e.k[0]))}"><b>${esc(e.k.slice(0,4).join(' · '))}</b><span>${esc(e.v)}</span></div>`).join('')||'No match.'}
+
+// ---- live words from the database ----
+async function loadWords(){
+  try{const c=JSON.parse(localStorage.getItem('slangWords')||'null');if(Array.isArray(c)&&c.length>100){build(c);run();stats();list()}}catch(e){}
+  try{
+    let all=[];
+    for(let off=0;;off+=1000){
+      const r=await fetch(`${SB}/rest/v1/words?select=keys,meaning&order=id.asc&limit=1000&offset=${off}`,{headers:H});
+      if(!r.ok)throw new Error('load');
+      const a=await r.json();all=all.concat(a);if(a.length<1000)break;
+    }
+    const rows=all.map(x=>({k:String(x.keys).split('|').map(a=>a.trim()).filter(Boolean),v:String(x.meaning)})).filter(x=>x.k.length&&x.v);
+    if(rows.length){build(rows);try{localStorage.setItem('slangWords',JSON.stringify(rows))}catch(e){}run();stats();list()}
+  }catch(e){}
+}
+
+// ---- suggestions go to the review queue ----
+let edKey=null,addMode=false;
+const recent=()=>{try{return JSON.parse(localStorage.getItem('slangSent')||'[]').filter(x=>Date.now()-x<36e5)}catch(e){return[]}};
+const allow=()=>recent().length<8;
+const stamp=()=>{try{const t=recent();t.push(Date.now());localStorage.setItem('slangSent',JSON.stringify(t))}catch(e){}};
+const msg=t=>{$('edst').textContent=t};
+function openEd(k,label,shown){
+  edKey=k;addMode=false;$('edw').hidden=true;const e=ENTBY.get(k);
+  $('edk').textContent='Suggest a better meaning: '+(label||k)+(e&&e.k.length>1?'  (also: '+e.k.filter(a=>norm(a)!==k).slice(0,5).join(', ')+')':'');
+  $('edv').value=e?e.v:(shown||'');msg('');$('ed').hidden=false;
+  $('ed').scrollIntoView({behavior:'smooth',block:'center'});$('edv').focus();
+}
+function openAdd(w){
+  addMode=true;edKey=null;$('edw').hidden=false;$('edw').value=w||'';$('edv').value='';
+  $('edk').textContent='Suggest a word for the dictionary';msg('');$('ed').hidden=false;
+  $('ed').scrollIntoView({behavior:'smooth',block:'center'});($('edw').value?$('edv'):$('edw')).focus();
+}
+async function send(){
+  const v=$('edv').value.trim().slice(0,100);if(!v)return;
+  let keys;
+  if(addMode){
+    keys=$('edw').value.split(',').map(a=>a.trim().slice(0,40)).filter(Boolean).slice(0,20);
+    if(!keys.length){msg('Enter the word first');return}
+    const dup=keys.find(k=>DICT.has(norm(k)));
+    if(dup){msg(`"${dup}" already means "${DICT.get(norm(dup))}". Tap it to suggest a change.`);return}
+  }else{
+    if(!edKey)return;const e=ENTBY.get(edKey);keys=(e?e.k:[edKey]).slice(0,20);
+  }
+  if(!allow()){msg('Too many suggestions for now. Try again later.');return}
+  $('eds').disabled=true;
+  try{
+    const r=await fetch(`${SB}/rest/v1/pending`,{method:'POST',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({keys:keys.join('|'),meaning:v})});
+    if(!r.ok)throw new Error('send');
+    stamp();msg('Sent for review. Thanks!');
+    if(addMode){$('edw').value='';$('edv').value=''}
+  }catch(e){msg('Could not send. Check your connection and try again.')}
+  $('eds').disabled=false;
+}
+$('eds').onclick=send;$('edc').onclick=()=>{$('ed').hidden=true};
+$('edv').addEventListener('keydown',ev=>{if(ev.key==='Enter')send()});
+$('out').onclick=ev=>{const h=ev.target.closest('.hit');if(h)return openEd(h.dataset.k,h.title,h.textContent);const u=ev.target.closest('.unk');if(u)openAdd(edge(u.textContent)[1])};
+$('list').onclick=ev=>{const d=ev.target.closest('[data-k]');if(!d)return;const e=ENTBY.get(d.dataset.k);openEd(d.dataset.k,e?e.k.slice(0,3).join(' · '):d.dataset.k,'')};
+$('addw').onclick=()=>openAdd('');
+$('gl').addEventListener('toggle',list);$('q').addEventListener('input',list);
+$('in').addEventListener('input',run);
+$('copy').onclick=()=>{try{navigator.clipboard.writeText($('out').innerText)}catch(e){}};
+['yalla habibi, 3ala fekra ana ta3ban ktir','wallah ma3rafsh leish!!','يلا حبيبي معلش بكرة ان شاء الله','tislam ya basha, wa7shteni hhhhh'].forEach(x=>{
+  const b=document.createElement('button');b.textContent=x.length>22?x.slice(0,22)+'…':x;
+  b.onclick=()=>{$('in').value=x;run()};$('chips').appendChild(b);
+});
+stats();run();loadWords();
+</script>
+</body>
+</html>
